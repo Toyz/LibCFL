@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -7,6 +6,12 @@ namespace LibCFL
 {
     public class CFLLoader
     {
+        public enum CompressionType
+        {
+            None = 0,
+            LZMA = 4
+        }
+
         private readonly string _file;
 
         public CFLLoader(string file)
@@ -32,6 +37,13 @@ namespace LibCFL
             while (header.EntryList.Length != currentReadLength)
             {
                 var entry = new CFLEntry(ehb, bin);
+
+                if (header.SupportsHash)
+                {
+                    var len = ehb.ReadInt32();
+                    entry.Hash = new string(ehb.ReadChars(len));
+                }
+
                 e.Add(entry);
 
                 currentReadLength += entry.EntrySize;
@@ -43,11 +55,5 @@ namespace LibCFL
 
             return e;
         }
-
-        public enum CompressionType
-        {
-            None = 0,
-            LZMA = 4
-        } 
     }
 }

@@ -1,31 +1,66 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
+﻿using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using SevenZip;
+using Decoder = SevenZip.Compression.LZMA.Decoder;
+using Encoder = SevenZip.Compression.LZMA.Encoder;
 
 namespace LibCFL
 {
     public static class Helpers
     {
+        private static readonly int dictionary = 1 << 23;
+
+        // static Int32 posStateBits = 2;
+        // static  Int32 litContextBits = 3; // for normal files
+        // UInt32 litContextBits = 0; // for 32-bit data
+        // static  Int32 litPosBits = 0;
+        // UInt32 litPosBits = 2; // for 32-bit data
+        // static   Int32 algorithm = 2;
+        // static    Int32 numFastBytes = 128;
+
+        private static readonly bool eos = true;
+
+        private static readonly CoderPropID[] propIDs =
+        {
+            CoderPropID.DictionarySize,
+            CoderPropID.PosStateBits,
+            CoderPropID.LitContextBits,
+            CoderPropID.LitPosBits,
+            CoderPropID.Algorithm,
+            CoderPropID.NumFastBytes,
+            CoderPropID.MatchFinder,
+            CoderPropID.EndMarker
+        };
+
+        // these are the default properties, keeping it simple for now:
+        private static readonly object[] properties =
+        {
+            dictionary,
+            2,
+            3,
+            0,
+            2,
+            128,
+            "bt4",
+            eos
+        };
+
         public static byte[] Decompress(CFLLoader.CompressionType compType, byte[] ins)
         {
-            if (compType == CFLLoader.CompressionType.None)
-            {
-                return ins;
-            }
+            if (compType == CFLLoader.CompressionType.None) return ins;
 
-            SevenZip.Compression.LZMA.Decoder coder = new SevenZip.Compression.LZMA.Decoder();
-            MemoryStream input = new MemoryStream(ins);
-            MemoryStream output = new MemoryStream();
+            var coder = new Decoder();
+            var input = new MemoryStream(ins);
+            var output = new MemoryStream();
 
             // Read the decoder properties
-            byte[] properties = new byte[5];
+            var properties = new byte[5];
             input.Read(properties, 0, 5);
             // Read in the decompress file size.
-            byte[] fileLengthBytes = new byte[8];
+            var fileLengthBytes = new byte[8];
             //input.Read(fileLengthBytes, 0, 8);
-            long fileLength = -1;//BitConverter.ToInt64(fileLengthBytes, 0);
+            long fileLength = -1; //BitConverter.ToInt64(fileLengthBytes, 0);
             coder.SetDecoderProperties(properties);
             coder.Code(input, output, input.Length, fileLength, null);
             output.Flush();
@@ -33,68 +68,32 @@ namespace LibCFL
             return output.ToArray();
         }
 
-
         public static byte[] Compress(byte[] inputBytes)
         {
-            MemoryStream inStream = new MemoryStream(inputBytes);
-            MemoryStream outStream = new MemoryStream();
-            SevenZip.Compression.LZMA.Encoder encoder = new SevenZip.Compression.LZMA.Encoder();
-            
-            encoder.SetPrivateFieldValue("properties", new byte[5]
-            {
-                93,0,0,128,0
-            });
+            var inStream = new MemoryStream(inputBytes);
+            var outStream = new MemoryStream();
+            var encoder = new Encoder();
+            encoder.SetCoderProperties(propIDs, properties);
+            encoder.WriteCoderProperties(outStream);
 
-            //encoder.WriteCoderProperties(outStream);
-            outStream.Write(new byte[5]
-            {
-                93,0,0,128,0
-            }, 0, 5);
-
-            long fileSize = inStream.Length;
-            for (int i = 0; i < 8; i++)
-                outStream.WriteByte((Byte)(fileSize >> (8 * i)));
-            encoder.Code(inStream, outStream, -1, -1, null);
+            encoder.Code(inStream, outStream, inStream.Length, -1, null);
             return outStream.ToArray();
         }
 
         public static string ByteArrayToString(byte[] ba)
         {
-            StringBuilder hex = new StringBuilder(ba.Length * 2);
-            foreach (byte b in ba)
+            var hex = new StringBuilder(ba.Length * 2);
+            foreach (var b in ba)
                 hex.AppendFormat("{0:x2}", b);
             return hex.ToString();
         }
 
-        /// <summary>
-        /// Sets a _private_ Property Value from a given Object. Uses Reflection.
-        /// Throws a ArgumentOutOfRangeException if the Property is not found.
-        /// </summary>
-        /// <typeparam name="T">Type of the Property</typeparam>
-        /// <param name="obj">Object from where the Property Value is set</param>
-        /// <param name="propName">Propertyname as string.</param>
-        /// <param name="val">Value to set.</param>
-        /// <returns>PropertyValue</returns>
-        public static void SetPrivatePropertyValue<T>(this object obj, string propName, T val)
+        public static string CalculateMD5Hash(byte[] inputBytes)
         {
-            Type t = obj.GetType();
-            if (t.GetProperty(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance) == null)
-                throw new ArgumentOutOfRangeException("propName", string.Format("Property {0} was not found in Type {1}", propName, obj.GetType().FullName));
-            t.InvokeMember(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.SetProperty | BindingFlags.Instance, null, obj, new object[] { val });
-        }
+            MD5 md5 = System.Security.Cryptography.MD5.Create();
+            byte[] hash = md5.ComputeHash(inputBytes);
 
-        public static void SetPrivateFieldValue<T>(this object obj, string propName, T val)
-        {
-            if (obj == null) throw new ArgumentNullException("obj");
-            Type t = obj.GetType();
-            FieldInfo fi = null;
-            while (fi == null && t != null)
-            {
-                fi = t.GetField(propName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                t = t.BaseType;
-            }
-            if (fi == null) throw new ArgumentOutOfRangeException("propName", string.Format("Field {0} was not found in Type {1}", propName, obj.GetType().FullName));
-            fi.SetValue(obj, val);
+            return ByteArrayToString(hash);
         }
     }
 }

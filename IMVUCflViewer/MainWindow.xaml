@@ -31,8 +31,15 @@
                         </GridView.ColumnHeaderContainerStyle>
 
                         <GridViewColumn Header="File Name" Width="150" DisplayMemberBinding="{Binding Name}" />
-                        <GridViewColumn Header="File Size" Width="100" DisplayMemberBinding="{Binding UnpackedSize}" />
-                        <GridViewColumn Header="Offset" Width="100" DisplayMemberBinding="{Binding Offset}" />
+                        <GridViewColumn Header="File Size" Width="75" DisplayMemberBinding="{Binding UnpackedSize}" />
+                        <GridViewColumn Header="Offset" Width="75" DisplayMemberBinding="{Binding Offset}" />
+                        <GridViewColumn Header="Hash" Width="110">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock ToolTip="{Binding Path=Hash}" Margin="5" Text="{Binding Path=Hash}"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
                         <GridViewColumn Width="65">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
