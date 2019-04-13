@@ -21,8 +21,6 @@ namespace IMVUCFLReader
             {
                 Console.WriteLine($"{entry.Name}");
             }
-
-            cfl.Dispose();
         }
     }
 }

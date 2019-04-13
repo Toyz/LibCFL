@@ -28,11 +28,17 @@ namespace LibCFL
 
         public void HeaderCompression(CFLLoader.CompressionType compression)
         {
+            if (compression == CFLLoader.CompressionType.LZMA)
+                throw new NotSupportedException();
+
             _cFlHeader.Compression = compression;
         }
 
         public void Add(string name, byte[] data, CFLLoader.CompressionType compression)
         {
+            if (compression == CFLLoader.CompressionType.LZMA)
+                throw new NotSupportedException();
+
             var entry = new CFLEntry()
             {
                 Name = name,
@@ -85,8 +91,18 @@ namespace LibCFL
                 }
 
                 var f = (MemoryStream)binEntry.BaseStream;
-                bin.Write(dicSize);
-                bin.Write(f.ToArray());
+                if (_cFlHeader.Compression == CFLLoader.CompressionType.LZMA)
+                {
+                    var data = Helpers.Compress(f.ToArray());
+                    dicSize = data.Length;
+                    bin.Write(dicSize);
+                    bin.Write(data);
+                }
+                else
+                {
+                    bin.Write(dicSize);
+                    bin.Write(f.ToArray());
+                }
             }
 
             _cFlHeader.CompressedDirectorySize = dicSize;
