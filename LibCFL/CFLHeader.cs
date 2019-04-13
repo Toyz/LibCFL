@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 
 namespace LibCFL
 {
@@ -9,21 +6,41 @@ namespace LibCFL
     {
         public string CFLType { get; set; }
 
+        public int SeekPoint { get; set; }
+
+        public int CompressedDirectorySize { get; set; }
+
         public CFLLoader.CompressionType Compression { get; set; }
 
         public byte[] EntryList { get; }
+
+        public int EntryLength => EntryList.Length;
+
+        public CFLHeader()
+        {
+            CFLType = "CFL3";
+            SeekPoint = 0;
+            CompressedDirectorySize = 0;
+        }
 
         public CFLHeader(BinaryReader bin)
         {
             CFLType = new string(bin.ReadChars(4));
 
-            var seekPoint = bin.ReadUInt32();
-            bin.BaseStream.Seek(seekPoint, SeekOrigin.Begin);
+            SeekPoint = (int)bin.ReadUInt32();
+            bin.BaseStream.Seek(SeekPoint, SeekOrigin.Begin);
 
             Compression = (CFLLoader.CompressionType) bin.ReadInt32();
-            var directoryCompressionSize = (int)bin.ReadUInt32();
+            CompressedDirectorySize = bin.ReadInt32();
 
-            EntryList = Helpers.Decompress(Compression, bin.ReadBytes(directoryCompressionSize));
+            if (Compression == CFLLoader.CompressionType.LZMA)
+            {
+                EntryList = Helpers.Decompress(Compression, bin.ReadBytes(CompressedDirectorySize));
+            }
+            else
+            {
+                EntryList = bin.ReadBytes(CompressedDirectorySize);
+            }
         }
 
         public BinaryReader EntryReader()

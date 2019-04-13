@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace LibCFL
 {
@@ -11,8 +12,11 @@ namespace LibCFL
         public int Offset { get; set; }
         public CFLLoader.CompressionType Compression { get; set; }
         public int EntrySize => 14 + Name.Length;
+        public short NameLen => (short) Name.Length;
 
-        public byte[] FileContents { get; }
+        public byte[] FileContents { get; set; }
+
+        public CFLEntry() { }
 
         public CFLEntry(BinaryReader bin, BinaryReader baseFile)
         {
@@ -24,7 +28,13 @@ namespace LibCFL
 
             baseFile.BaseStream.Seek(Offset, SeekOrigin.Begin);
 
-            FileContents = Helpers.Decompress(Compression, baseFile.ReadBytes((int)baseFile.ReadUInt32()));
+            if (Compression == CFLLoader.CompressionType.LZMA)
+            {
+                FileContents = Helpers.Decompress(Compression, baseFile.ReadBytes((int) baseFile.ReadUInt32()));
+            } else
+            {
+                FileContents = baseFile.ReadBytes((int) baseFile.ReadUInt32());
+            }
         }
 
         public void Save(string filePath)
