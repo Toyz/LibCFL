@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace LibCFL
 {
@@ -30,7 +31,7 @@ namespace LibCFL
         public int UnpackedSize { get; set; }
         public int Offset { get; set; }
         public CFLLoader.CompressionType Compression { get; set; }
-        public int EntrySize => 14 + Name.Length + (Hash.Length > 0 ? 4 + Hash.Length : 0);
+        public int EntrySize => 14 + Name.Length + (!string.IsNullOrWhiteSpace(Hash) ? 4 + Hash.Length : 0);
         public short NameLen => (short) Name.Length;
         public string Hash { get; set; }
 
